@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"fmt"
 	"net"
+	"os"
+	"io/ioutil"
 	"regexp"
 	"strings"
 )
@@ -79,7 +81,11 @@ func Process(conn net.Conn, server Server) {
 			fmt.Printf("reverse read empty")
 		}
 	} else {
-		
+		response := StaticProxy(request, matchLocation)
+		_, err = conn.Write([]byte(response))
+		if err != nil {
+			fmt.Printf("write from conn failed, err:%v\n", err)
+		}
 	}
 }
 
@@ -198,7 +204,7 @@ func GenerateReverseRequest(request Request, location Location) string {
 		request.Headers[k] = v
 	}
 	data := ""
-	data += request.Method + " " + request.HTTPVersion + "/r/n"
+	data += request.Method + " " + request.HTTPVersion + "\r\n"
 	for k, v := range request.Headers {
 		data += k + ":" + " " + v + "\r\n"
 	}
@@ -206,6 +212,46 @@ func GenerateReverseRequest(request Request, location Location) string {
 	return data
 }
 
-func StaticProxy() {
+func StaticProxy(request Request, location Location) string {
+	filepath := ""
+	paths := strings.Split(location.root, "/")
+	for _, path := range paths {
+		filepath += "/"
+		filepath += path
+	}
+	paths = strings.Split(request.URL, "/")
+	length := len(strings.Split(location.url, "/"))
+	if length == len(paths) {
+		filepath += "/" + location.index
+	} else {
+		for i, path := range paths {
+			if i >= length {
+				filepath += "/"
+				filepath += path
+			}
+		}
+	}
 
+	file, err := os.Open(filepath)
+	if err != nil {
+		fmt.Println("open file error")
+	}
+	defer file.Close()
+	
+	content, err := ioutil.ReadAll(file)
+	if err != nil {
+		fmt.Println("read file error")
+	}
+
+	staticResponse := GenerateStaticResponse()
+	staticResponse += string(content)
+	return staticResponse
+}
+
+func GenerateStaticResponse() string {
+	data := ""
+	data += "HTTP/1.1 200 OK\r\n"
+	data += "Content-Type: image/png\r\n"
+	data += "\r\n\r\n"
+	return data
 }

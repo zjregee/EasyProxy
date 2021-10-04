@@ -111,7 +111,7 @@ func ParseRequest(recv string) Request {
 		if len(params) != 2 {
 			continue
 		}
-		request.Headers[params[0][:len(params)-2]] = params[1]
+		request.Headers[params[0][:len(params)-1]] = params[1]
 	}
 
 	return request
